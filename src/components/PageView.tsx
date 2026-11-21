@@ -485,7 +485,7 @@ function TextEditor({ a, z }: { a: TextAnnot; z: number }) {
 }
 
 /** Pointer shown while erasing. Circle and square outline the brush; plus and
- *  pencil mark the exact point, with the brush size shown faintly around it. */
+ *  pencil mark the exact point (the plus sign's arms scale with brush size). */
 function EraserCursor({ x, y, size, shape }: { x: number; y: number; size: number; shape: 'circle' | 'square' | 'plus' | 'pencil' }) {
   const box = { left: x - size / 2, top: y - size / 2, width: size, height: size };
   if (shape === 'circle' || shape === 'square') {
@@ -494,7 +494,6 @@ function EraserCursor({ x, y, size, shape }: { x: number; y: number; size: numbe
   const arm = Math.max(10, size / 2 + 4);
   return (
     <>
-      <div className="eraser-cursor ghost" style={box} />
       {shape === 'plus' ? (
         <svg className="eraser-mark" data-testid="eraser-cursor" data-shape="plus" width={arm * 2} height={arm * 2}
           style={{ left: x - arm, top: y - arm }} viewBox={`0 0 ${arm * 2} ${arm * 2}`}>

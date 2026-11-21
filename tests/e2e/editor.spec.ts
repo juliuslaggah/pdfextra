@@ -409,3 +409,15 @@ test('eraser cursor shape can be chosen', async ({ page }) => {
     await expect(page.getByTestId('eraser-cursor')).toHaveAttribute('data-shape', shape);
   }
 });
+
+test('plus and pencil cursors have no outline around them', async ({ page }) => {
+  await openSample(page);
+  await tool(page, 'eraser');
+  const p = await at(page, 200, 300);
+  for (const shape of ['Plus', 'Pencil']) {
+    await page.getByRole('radio', { name: `${shape} cursor` }).click();
+    await page.mouse.move(p.x, p.y);
+    await page.mouse.move(p.x + 5, p.y + 5);
+    await expect(page.locator('.eraser-cursor')).toHaveCount(0);
+  }
+});
