@@ -25,7 +25,7 @@ export async function openPdf(bytes: Uint8Array, name: string, password?: string
   // pdf.js transfers the buffer to its worker, so hand it a copy
   const task = pdfjs.getDocument({
     data: bytes.slice(), password, isEvalSupported: false,
-    standardFontDataUrl: '/pdfjs/standard_fonts/', cMapUrl: '/pdfjs/cmaps/', cMapPacked: true,
+    standardFontDataUrl: `${import.meta.env.BASE_URL}pdfjs/standard_fonts/`, cMapUrl: `${import.meta.env.BASE_URL}pdfjs/cmaps/`, cMapPacked: true,
   });
   let doc: PDFDocumentProxy;
   try {

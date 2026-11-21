@@ -23,7 +23,7 @@ const fontCache = new Map<string, Promise<ArrayBuffer>>();
 function loadFont(name: string) {
   let p = fontCache.get(name);
   if (!p) {
-    p = fetch(`/fonts/${name}.ttf`).then((r) => {
+    p = fetch(`${import.meta.env.BASE_URL}fonts/${name}.ttf`).then((r) => {
       if (!r.ok) throw new Error(`Font ${name} failed to load`);
       return r.arrayBuffer();
     });
