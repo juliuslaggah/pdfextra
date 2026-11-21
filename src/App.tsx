@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { FileUp, Lock, Sparkles, Zap } from 'lucide-react';
-import { useEditor } from './store/store';
+import { hasUnsavedEdits, useEditor } from './store/store';
 import { useUi } from './store/ui';
 import { Header, Logo, OptionsBar, TOOL_KEYS, Toolbar } from './components/Toolbar';
 import { Viewer } from './components/Viewer';
@@ -123,7 +123,7 @@ function Landing() {
   const busy = useUi((s) => s.busy);
   return (
     <div className="landing">
-      <div className="landing-brand"><Logo /> <span>Page<b>Craft</b></span></div>
+      <div className="landing-brand"><Logo /> <span>pdf<b>extra</b></span></div>
       <h1>Edit any PDF, right in your browser</h1>
       <p className="lead">Change text, highlight, redact, sign, draw, add images and reorganize pages. Your file never leaves your device.</p>
       <button className="dropzone" onClick={() => ref.current?.click()} disabled={!!busy} data-testid="dropzone">
@@ -153,7 +153,7 @@ export default function App() {
 
   useEffect(() => {
     if (!hasDoc) return;
-    const warn = (e: BeforeUnloadEvent) => { if (useEditor.getState().past.length) { e.preventDefault(); e.returnValue = ''; } };
+    const warn = (e: BeforeUnloadEvent) => { if (hasUnsavedEdits()) { e.preventDefault(); e.returnValue = ''; } };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [hasDoc]);

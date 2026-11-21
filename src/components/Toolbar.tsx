@@ -1,10 +1,11 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import {
   Bold, Copy, Eraser, EyeOff, FileDown, FolderOpen, Highlighter, ImagePlus, Italic, LayoutGrid, Maximize2, Minus,
   MousePointer2, Pencil, Plus, Redo2, Replace, Shapes, Signature, Square, Stamp, Strikethrough, TextCursor, Trash2,
   Type, Underline, Undo2,
 } from 'lucide-react';
-import { useEditor } from '../store/store';
+import { hasUnsavedEdits, useEditor } from '../store/store';
+import { Modal } from './Panels';
 import { useUi } from '../store/ui';
 import type { Annotation, FontFamily, ShapeKind, Tool } from '../lib/types';
 import { openFile, readImageFile, saveDoc } from '../lib/actions';
@@ -32,6 +33,11 @@ const TOOLS: { id: Tool; label: string; icon: React.ElementType; key?: string }[
 export const TOOL_KEYS = Object.fromEntries(TOOLS.filter((t) => t.key).map((t) => [t.key!.toLowerCase(), t.id]));
 
 export function Header() {
+  const [confirmHome, setConfirmHome] = useState(false);
+  const goHome = () => {
+    if (hasUnsavedEdits()) setConfirmHome(true);
+    else useEditor.getState().closeDoc();
+  };
   const fileName = useEditor((s) => s.fileName);
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
@@ -41,7 +47,20 @@ export function Header() {
   const fileRef = useRef<HTMLInputElement>(null);
   return (
     <header className="header">
-      <div className="brand"><Logo /> <span>Page<b>Craft</b></span></div>
+      <button className="brand" onClick={goHome} title="Home" aria-label="Home" data-testid="home">
+        <Logo /> <span>pdf<b>extra</b></span>
+      </button>
+      {confirmHome && (
+        <Modal title="Leave this document?" onClose={() => setConfirmHome(false)}>
+          <p className="confirm-text">You have edits you haven't downloaded. If you go home now, they will be lost.</p>
+          <div className="modal-foot">
+            <button className="btn ghost" onClick={() => setConfirmHome(false)}>Keep editing</button>
+            <span className="spacer" />
+            <button className="btn ghost" onClick={async () => { setConfirmHome(false); if (await saveDoc()) useEditor.getState().closeDoc(); }}>Download, then leave</button>
+            <button className="btn danger" onClick={() => { setConfirmHome(false); useEditor.getState().closeDoc(); }} data-testid="discard">Leave without saving</button>
+          </div>
+        </Modal>
+      )}
       <div className="file-name" title={fileName}>{fileName}</div>
       <div className="header-actions">
         <button className="icon-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" aria-label="Undo"><Undo2 size={18} /></button>

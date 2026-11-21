@@ -1,4 +1,4 @@
-# PageCraft PDF Editor
+# pdfextra
 
 A browser-based PDF editor. Everything runs on the client: files are never uploaded, so it deploys as a static site (Vercel, Netlify, any CDN).
 

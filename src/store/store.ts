@@ -36,7 +36,12 @@ export interface EditorState {
   opts: ToolOptions;
   panel: 'none' | 'organize' | 'find' | 'sign';
 
+  /** the document as it was when opened or last downloaded */
+  savedDoc: DocState | null;
   loadDoc(fileName: string, pages: PageSpec[]): void;
+  markSaved(): void;
+  /** close the document and return to the start screen */
+  closeDoc(): void;
   /** Apply a change and record it for undo. */
   commit(fn: (d: DocState) => DocState): void;
   /** Apply a change without recording (use after `checkpoint` for drags). */
@@ -99,8 +104,14 @@ export const useEditor = create<EditorState>((set, get) => ({
   opts: defaultOpts,
   panel: 'none',
 
-  loadDoc: (fileName, pages) =>
-    set({ fileName, doc: { pages, annots: [] }, past: [], future: [], selectedId: null, editingId: null, currentPage: 0, tool: 'select' }),
+  savedDoc: null,
+  loadDoc: (fileName, pages) => {
+    const doc = { pages, annots: [] };
+    set({ fileName, doc, savedDoc: doc, past: [], future: [], selectedId: null, editingId: null, currentPage: 0, tool: 'select', panel: 'none' });
+  },
+  markSaved: () => set({ savedDoc: get().doc }),
+  closeDoc: () =>
+    set({ fileName: '', doc: emptyDoc, savedDoc: null, past: [], future: [], selectedId: null, editingId: null, currentPage: 0, tool: 'select', panel: 'none', scrollTarget: null }),
 
   commit: (fn) => {
     const { doc, past } = get();
@@ -217,3 +228,7 @@ export function commitFrom(base: DocState) {
 
 /** Text annotations being edited that were created by a tool (not yet in history). */
 export const pendingText = new Map<string, { base: DocState; coverId?: string; original?: string }>();
+
+/** True when there are edits that have not been downloaded yet. */
+export const hasUnsavedEdits = (s: EditorState = useEditor.getState()) =>
+  s.savedDoc !== null && s.doc !== s.savedDoc && (s.doc.annots !== s.savedDoc.annots || s.doc.pages !== s.savedDoc.pages);

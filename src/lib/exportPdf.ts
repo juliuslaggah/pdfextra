@@ -136,8 +136,8 @@ export async function exportPdf(state: DocState, deps: ExportDeps): Promise<Uint
   }
 
   if (deps.title) out.setTitle(deps.title);
-  out.setProducer('PageCraft PDF Editor');
-  out.setCreator('PageCraft PDF Editor');
+  out.setProducer('pdfextra');
+  out.setCreator('pdfextra');
   return out.save();
 }
 

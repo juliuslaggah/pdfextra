@@ -73,6 +73,7 @@ export function saveDoc(subset?: DocState, suffix?: string) {
     const bytes = await buildPdf(subset ?? doc, fileName.replace(/\.pdf$/i, ''));
     const name = suffix ? editedName(fileName).replace(/-edited\.pdf$/, `-${suffix}.pdf`) : editedName(fileName);
     downloadBytes(bytes, name);
+    if (!subset) useEditor.getState().markSaved();
     useUi.getState().notify(`Saved ${name}`);
     return bytes;
   });

@@ -11,7 +11,7 @@ import { guessFamily, measureText, BASELINE } from '../lib/textLayout';
 import { uid } from '../lib/geometry';
 import type { Annotation, TextAnnot } from '../lib/types';
 
-function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
+export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', k);
@@ -94,6 +94,7 @@ export function OrganizePanel() {
 
 /* ---------------------------------------------------------------- Signature */
 
+// key kept from the app's earlier name so saved signatures are not lost
 const SAVED_KEY = 'pagecraft.signatures';
 function loadSaved(): string[] {
   try { return JSON.parse(localStorage.getItem(SAVED_KEY) ?? '[]'); } catch { return []; }

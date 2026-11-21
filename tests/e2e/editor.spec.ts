@@ -555,3 +555,36 @@ test('shapes, images and whiteout can be moved with their own tools', async ({ p
   expect(s.doc.annots).toHaveLength(2);
   expect(s.doc.annots[1]).toMatchObject({ x: 330, y: 495 });
 });
+
+test('the pdfextra logo is a Home button', async ({ page }) => {
+  await openSample(page);
+  await expect(page).toHaveTitle('pdfextra');
+  await expect(page.getByTestId('home')).toContainText('pdfextra');
+  // no edits: goes straight home
+  await page.getByTestId('home').click();
+  await expect(page.getByTestId('dropzone')).toBeVisible();
+});
+
+test('Home asks before discarding edits that were not downloaded', async ({ page }) => {
+  await openSample(page);
+  await tool(page, 'whiteout');
+  await drag(page, [100, 600], [200, 650]);
+  await page.getByTestId('home').click();
+  await expect(page.getByRole('dialog', { name: 'Leave this document?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Keep editing' }).click();
+  await expect(page.locator('.page')).toHaveCount(3);
+  expect((await state(page)).doc.annots).toHaveLength(1);
+  // after downloading, Home leaves without asking
+  await save(page);
+  await page.getByTestId('home').click();
+  await expect(page.getByTestId('dropzone')).toBeVisible();
+  // and a fresh document can be opened again
+  await page.getByTestId('sample').click();
+  await expect(page.locator('.page')).toHaveCount(3);
+  expect((await state(page)).doc.annots).toHaveLength(0);
+  await tool(page, 'whiteout');
+  await drag(page, [100, 600], [200, 650]);
+  await page.getByTestId('home').click();
+  await page.getByTestId('discard').click();
+  await expect(page.getByTestId('dropzone')).toBeVisible();
+});
