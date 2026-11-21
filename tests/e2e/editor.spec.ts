@@ -504,3 +504,54 @@ test('text being typed can be moved with its grip', async ({ page }) => {
   await page.keyboard.press('Control+z');
   expect((await state(page)).doc.annots).toHaveLength(0);
 });
+
+test('a stamp can be moved right after placing it, without switching tools', async ({ page }) => {
+  await openSample(page);
+  await tool(page, 'stamp');
+  await clickAt(page, 300, 650);
+  const s0 = (await state(page)).doc.annots[0];
+  await expect(page.locator('.selection')).toBeVisible(); // handles show in the Stamp tool
+  await drag(page, [300, 650], [200, 600]);
+  const s = await state(page);
+  expect(s.doc.annots).toHaveLength(1); // moved, not a second stamp
+  expect(s.doc.annots[0].x).toBeCloseTo(s0.x - 100, 0);
+  expect(s.doc.annots[0].y).toBeCloseTo(s0.y - 50, 0);
+  // clicking an existing stamp selects it instead of stamping again
+  await clickAt(page, 200, 600);
+  expect((await state(page)).doc.annots).toHaveLength(1);
+  // clicking empty space still places a new stamp
+  await clickAt(page, 400, 450);
+  expect((await state(page)).doc.annots).toHaveLength(2);
+});
+
+test('items under eraser strokes can still be grabbed and moved', async ({ page }) => {
+  await openSample(page);
+  await tool(page, 'stamp');
+  await clickAt(page, 300, 650);
+  const s0 = (await state(page)).doc.annots[0];
+  await tool(page, 'eraser');
+  await drag(page, [150, 650], [450, 650]); // paint across the stamp
+  await tool(page, 'select');
+  await drag(page, [300, 650], [350, 700]);
+  const s = await state(page);
+  const stamp = s.doc.annots.find((a: any) => a.type === 'stamp');
+  const ink = s.doc.annots.find((a: any) => a.type === 'ink');
+  expect(stamp.x).toBeCloseTo(s0.x + 50, 0);
+  expect(ink.paths[0][0].x).toBeCloseTo(150, 0); // the eraser stroke stayed put
+});
+
+test('shapes, images and whiteout can be moved with their own tools', async ({ page }) => {
+  await openSample(page);
+  await tool(page, 'shape');
+  await drag(page, [100, 600], [200, 650]);
+  await drag(page, [100, 612], [150, 642]); // grab the left edge and move
+  let s = await state(page);
+  expect(s.doc.annots).toHaveLength(1);
+  expect(s.doc.annots[0]).toMatchObject({ x: 150, y: 630 });
+  await tool(page, 'whiteout');
+  await drag(page, [300, 450], [400, 500]);
+  await drag(page, [350, 475], [380, 520]);
+  s = await state(page);
+  expect(s.doc.annots).toHaveLength(2);
+  expect(s.doc.annots[1]).toMatchObject({ x: 330, y: 495 });
+});

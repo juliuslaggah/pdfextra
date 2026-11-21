@@ -104,9 +104,29 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
     const r = overlayRef.current!.getBoundingClientRect();
     return { x: Math.min(w, Math.max(0, (e.clientX - r.left) / z)), y: Math.min(h, Math.max(0, (e.clientY - r.top) / z)) };
   };
-  const topHit = (p: Point) => {
-    for (let i = annots.length - 1; i >= 0; i--) if (hitTest(annots[i], p, 4 / z)) return annots[i];
+  /** The item under the pointer. The selected item wins when it is hit, and
+   *  eraser strokes (invisible paper-coloured paint) are skipped unless asked for. */
+  const topHit = (p: Point, includeErase = false) => {
+    const sel = annots.find((a) => a.id === selectedId);
+    if (sel && (includeErase || !(sel.type === 'ink' && sel.erase)) && hitTest(sel, p, 4 / z)) return sel;
+    for (let i = annots.length - 1; i >= 0; i--) {
+      const a = annots[i];
+      if (!includeErase && a.type === 'ink' && a.erase) continue;
+      if (hitTest(a, p, 4 / z)) return a;
+    }
     return null;
+  };
+  /** An added item the current tool should pick up and move instead of creating something new. */
+  const grabTarget = (p: Point) => {
+    if (tool === 'draw' || tool === 'eraser') return null;
+    const a = topHit(p);
+    if (!a) return null;
+    if (a.id === selectedId || tool === 'select') return a;
+    // dragging across text with these tools marks it, so only the selected item moves
+    if (tool === 'highlight' || tool === 'underline' || tool === 'strikeout') return null;
+    // the patch behind edited text stays put
+    if ((tool === 'text' || tool === 'editText') && a.type === 'whiteout') return null;
+    return a;
   };
   const st = useEditor.getState;
 
@@ -176,6 +196,15 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
         return;
       }
     }
+    // any tool except Draw and Eraser picks up an item it is pressed on
+    if (tool !== 'select') {
+      const g = grabTarget(p);
+      if (g) {
+        st().select(g.id);
+        setD({ kind: 'move', id: g.id, start: p, orig: g, moved: false, editOnClick: g.type === 'text' && (tool === 'text' || tool === 'editText') });
+        return;
+      }
+    }
     switch (tool) {
       case 'select': {
         const a = topHit(p);
@@ -184,14 +213,10 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
         return;
       }
       case 'text': {
-        const a = topHit(p);
-        if (a?.type === 'text') { st().select(a.id); setD({ kind: 'move', id: a.id, start: p, orig: a, moved: false, editOnClick: true }); return; }
         startText({ x: p.x, y: p.y - st().opts.fontSize * 0.6 });
         return;
       }
       case 'editText': {
-        const a = topHit(p);
-        if (a?.type === 'text') { st().select(a.id); setD({ kind: 'move', id: a.id, start: p, orig: a, moved: false, editOnClick: true }); return; }
         const item = items.find((it) => pointInRect(p, it.rect, 1));
         if (item) editExistingText(item);
         else useUi.getState().notify('No editable text here. Use Add Text to place new text.');
@@ -225,7 +250,7 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
   };
 
   function erase(p: Point) {
-    const hit = topHit(p);
+    const hit = topHit(p, true);
     if (hit) {
       st().mutate((d) => ({ ...d, annots: d.annots.filter((x) => x.id !== hit.id) }));
       if (dragRef.current?.kind === 'erase') dragRef.current.erased = true;
@@ -235,8 +260,8 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
   const onPointerMove = (e: React.PointerEvent) => {
     const p = toPt(e);
     if (tool === 'eraser') setEraserPos(p);
-    if ((tool === 'text' || tool === 'editText') && !dragRef.current) {
-      const over = topHit(p)?.type === 'text';
+    if (!dragRef.current) {
+      const over = !!grabTarget(p);
       if (over !== overText) setOverText(over);
     }
     if (tool === 'editText' && !dragRef.current) {
@@ -368,7 +393,7 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
   return (
     <div
       ref={overlayRef}
-      className={`overlay tool-${tool} ${overText && (tool === 'text' || tool === 'editText') ? 'over-text' : ''}`}
+      className={`overlay tool-${tool} ${overText ? 'over-text' : ''}`}
       data-testid={`overlay-${spec.id}`}
       onPointerDown={onPointerDown}
       // keep focus in the text editor; we blur it explicitly when needed
@@ -390,7 +415,7 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
         <div key={i} className={`text-item ${i === hoverItem ? 'hover' : ''}`} style={{ left: it.rect.x * z, top: it.rect.y * z, width: it.rect.w * z, height: it.rect.h * z }} />
       ))}
       {preview}
-      {selected && selected.id !== editingId && tool === 'select' && <SelectionBox a={selected} z={z} />}
+      {selected && selected.id !== editingId && tool !== 'draw' && tool !== 'eraser' && <SelectionBox a={selected} z={z} />}
       {editingId && annots.some((a) => a.id === editingId) && (
         <>
           <TextEditor a={annots.find((a) => a.id === editingId) as TextAnnot} z={z} />
