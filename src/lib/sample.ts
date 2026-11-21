@@ -18,7 +18,7 @@ export async function makeSamplePdf(): Promise<Uint8Array> {
   ];
   body.forEach((l, i) => p1.drawText(l, { x: 72, y: 590 - i * 20, size: 12, font: times }));
   p1.drawText('Signature: ______________________', { x: 72, y: 180, size: 12, font: helv });
-  p1.drawRectangle({ x: 72, y: 380, width: 468, height: 120, borderColor: rgb(0.3, 0.4, 0.8), borderWidth: 1.5 });
+  p1.drawRectangle({ x: 72, y: 380, width: 468, height: 120, borderColor: rgb(0.18, 0.42, 0.31), borderWidth: 1.5 });
   p1.drawText('Total due: $12,400.00', { x: 90, y: 440, size: 16, font: bold });
 
   const p2 = doc.addPage([612, 792]);

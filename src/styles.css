@@ -12,15 +12,15 @@
 }
 
 :root {
-  --bg: #eef0f4;
+  --bg: #eef1ed;
   --surface: #ffffff;
-  --surface-2: #f6f7f9;
-  --border: #e2e5ea;
+  --surface-2: #f5f7f3;
+  --border: #dde3db;
   --text: #1a1d23;
   --muted: #6b7280;
-  --accent: #4f46e5;
+  --accent: #2d6a4f;
   --accent-ink: #ffffff;
-  --accent-soft: #eef0ff;
+  --accent-soft: #e3efe7;
   --danger: #dc2626;
   --shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 4px 16px rgb(16 24 40 / 8%);
   --radius: 10px;
@@ -30,29 +30,29 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #15171c;
-    --surface: #1e2128;
-    --surface-2: #262a33;
-    --border: #333844;
+    --bg: #131714;
+    --surface: #1c211d;
+    --surface-2: #252b26;
+    --border: #323b34;
     --text: #e8eaee;
     --muted: #9aa1ad;
-    --accent: #818cf8;
+    --accent: #74c69d;
     --accent-ink: #11131a;
-    --accent-soft: #2a2e4a;
+    --accent-soft: #213a2b;
     --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 6px 20px rgb(0 0 0 / 35%);
     color-scheme: dark;
   }
 }
 :root[data-theme='dark'] {
-    --bg: #15171c;
-    --surface: #1e2128;
-    --surface-2: #262a33;
-    --border: #333844;
+    --bg: #131714;
+    --surface: #1c211d;
+    --surface-2: #252b26;
+    --border: #323b34;
     --text: #e8eaee;
     --muted: #9aa1ad;
-    --accent: #818cf8;
+    --accent: #74c69d;
     --accent-ink: #11131a;
-    --accent-soft: #2a2e4a;
+    --accent-soft: #213a2b;
     --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 6px 20px rgb(0 0 0 / 35%);
     color-scheme: dark;
 }
@@ -167,13 +167,13 @@ input[type='color'] { width: 28px; height: 26px; padding: 0; border: 1px solid v
 .overlay.tool-highlight, .overlay.tool-underline, .overlay.tool-strikeout { cursor: text; }
 .vector-layer { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
 .annot-redact { background: repeating-linear-gradient(135deg, #000 0 8px, #1f1f1f 8px 16px); outline: 1.5px solid #ef4444; }
-.drag-box { position: absolute; border: 1.5px dashed var(--accent); background: rgb(79 70 229 / 8%); pointer-events: none; }
+.drag-box { position: absolute; border: 1.5px dashed var(--accent); background: rgb(45 106 79 / 8%); pointer-events: none; }
 .drag-box.redact { background: rgb(0 0 0 / 70%); border-color: #ef4444; }
 .drag-box.whiteout { background: rgb(255 255 255 / 90%); border-color: #9ca3af; }
 .snap-box { position: absolute; background: rgb(250 204 21 / 45%); mix-blend-mode: multiply; pointer-events: none; }
 .text-item { position: absolute; pointer-events: none; border-radius: 2px; }
-.text-item { outline: 1px dashed rgb(79 70 229 / 25%); }
-.text-item.hover { outline: 1.5px solid var(--accent); background: rgb(79 70 229 / 8%); }
+.text-item { outline: 1px dashed rgb(45 106 79 / 25%); }
+.text-item.hover { outline: 1.5px solid var(--accent); background: rgb(45 106 79 / 8%); }
 .find-match { position: absolute; background: rgb(250 204 21 / 40%); outline: 1px solid rgb(202 138 4 / 70%); pointer-events: none; mix-blend-mode: multiply; }
 .find-match.active { background: rgb(249 115 22 / 50%); outline: 2px solid #ea580c; }
 .selection { position: absolute; outline: 1.5px solid var(--accent); pointer-events: none; }
@@ -243,7 +243,7 @@ input[type='color'] { width: 28px; height: 26px; padding: 0; border: 1px solid v
 .features svg { color: var(--accent); }
 
 /* ---------- overlays ---------- */
-.drop-overlay { position: fixed; inset: 12px; border: 3px dashed var(--accent); border-radius: 18px; background: rgb(79 70 229 / 12%); display: grid; place-items: center; font-size: 20px; font-weight: 600; color: var(--accent); z-index: 100; pointer-events: none; }
+.drop-overlay { position: fixed; inset: 12px; border: 3px dashed var(--accent); border-radius: 18px; background: rgb(45 106 79 / 12%); display: grid; place-items: center; font-size: 20px; font-weight: 600; color: var(--accent); z-index: 100; pointer-events: none; }
 .busy { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 16px; border-radius: 99px; font-size: 13px; z-index: 60; }
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 10px; font-size: 14px; z-index: 200; box-shadow: var(--shadow); max-width: calc(100% - 32px); }
 .toast.error { background: var(--danger); color: #fff; }
