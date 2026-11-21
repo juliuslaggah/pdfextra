@@ -227,7 +227,23 @@ export function OptionsBar() {
       );
       break;
     case 'eraser':
-      body = <span className="hint">Click or drag over anything you added to remove it.</span>;
+      body = (
+        <>
+          <div className="opt-group" role="group" aria-label="Eraser mode">
+            <button className={`chip ${opts.eraserMode === 'content' ? 'on' : ''}`} onClick={() => setOpts({ eraserMode: 'content' })}>Erase page content</button>
+            <button className={`chip ${opts.eraserMode === 'annots' ? 'on' : ''}`} onClick={() => setOpts({ eraserMode: 'annots' })}>Remove my edits</button>
+          </div>
+          {opts.eraserMode === 'content' ? (
+            <>
+              <label className="opt-label">Size
+                <input type="range" min={4} max={60} step={1} value={opts.eraserSize} onChange={(e) => setOpts({ eraserSize: parseFloat(e.target.value) })} aria-label="Eraser size" />
+                <span className="mono">{opts.eraserSize}</span>
+              </label>
+              <span className="hint">Drag over anything on the page to paint it out with the paper colour.</span>
+            </>
+          ) : <span className="hint">Click or drag over anything you added to remove it.</span>}
+        </>
+      );
       break;
     default:
       body = <span className="hint">Select an item to move, resize or style it. Double-click text to edit it.</span>;

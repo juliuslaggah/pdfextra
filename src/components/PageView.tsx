@@ -17,7 +17,7 @@ type Drag =
   | { kind: 'resize'; id: string; handle: Handle; start: Point; orig: Annotation; ob: Rect }
   | { kind: 'lineEnd'; id: string; end: 1 | 2 }
   | { kind: 'create'; start: Point; cur: Point }
-  | { kind: 'ink'; points: Point[] }
+  | { kind: 'ink'; points: Point[]; color?: string; width?: number }
   | { kind: 'erase'; erased: boolean };
 
 export function PageView({ spec, index }: { spec: PageSpec; index: number }) {
@@ -194,6 +194,14 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
         setD({ kind: 'ink', points: [p] });
         return;
       case 'eraser':
+        if (opts.eraserMode === 'content') {
+          // paint over the page in its own background colour
+          const pc = pageCanvases.get(spec.id);
+          const r = opts.eraserSize * 1.5;
+          const color = pc ? sampleColors(pc.canvas, { x: p.x - r, y: p.y - r, w: r * 2, h: r * 2 }, pc.scale).bg : '#ffffff';
+          setD({ kind: 'ink', points: [p], color, width: opts.eraserSize });
+          return;
+        }
         st().checkpoint();
         setD({ kind: 'erase', erased: false });
         erase(p);
@@ -251,7 +259,7 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
       case 'ink': {
         const last = d.points[d.points.length - 1];
         if (Math.hypot(p.x - last.x, p.y - last.y) * z < 1.5) return;
-        setD({ kind: 'ink', points: [...d.points, p] });
+        setD({ ...d, points: [...d.points, p] });
         return;
       }
       case 'erase':
@@ -266,7 +274,7 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
     if (!d) return;
     const { opts } = st();
     if (d.kind === 'ink') {
-      st().addAnnot({ id: uid('an'), pageId: spec.id, type: 'ink', paths: [d.points], stroke: opts.color, strokeWidth: opts.strokeWidth, opacity: 1 }, false);
+      st().addAnnot({ id: uid('an'), pageId: spec.id, type: 'ink', paths: [d.points], stroke: d.color ?? opts.color, strokeWidth: d.width ?? opts.strokeWidth, opacity: 1 }, false);
     } else if (d.kind === 'erase' && !d.erased) {
       // nothing erased: drop the checkpoint we pushed
       const s = st();
@@ -335,7 +343,7 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
     }
   } else if (drag?.kind === 'ink') {
     const o = st().opts;
-    preview = <VectorLayer z={z} w={w} h={h} annots={[{ id: 'pv', pageId: spec.id, type: 'ink', paths: [drag.points], stroke: o.color, strokeWidth: o.strokeWidth, opacity: 1 }]} />;
+    preview = <VectorLayer z={z} w={w} h={h} annots={[{ id: 'pv', pageId: spec.id, type: 'ink', paths: [drag.points], stroke: drag.color ?? o.color, strokeWidth: drag.width ?? o.strokeWidth, opacity: 1 }]} />;
   }
 
   return (
@@ -367,7 +375,10 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
       {editingId && annots.some((a) => a.id === editingId) && (
         <TextEditor a={annots.find((a) => a.id === editingId) as TextAnnot} z={z} />
       )}
-      {tool === 'eraser' && eraserPos && <div className="eraser-cursor" style={{ left: eraserPos.x * z - 8, top: eraserPos.y * z - 8 }} />}
+      {tool === 'eraser' && eraserPos && (() => {
+        const size = st().opts.eraserMode === 'content' ? st().opts.eraserSize * z : 16;
+        return <div className="eraser-cursor" style={{ left: eraserPos.x * z - size / 2, top: eraserPos.y * z - size / 2, width: size, height: size }} />;
+      })()}
     </div>
   );
 }

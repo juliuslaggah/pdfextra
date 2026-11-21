@@ -203,6 +203,7 @@ test('draw and erase', async ({ page }) => {
   expect(s.doc.annots[0].type).toBe('ink');
   expect(s.doc.annots[0].paths[0].length).toBeGreaterThan(3);
   await tool(page, 'eraser');
+  await page.getByRole('button', { name: 'Remove my edits' }).click();
   await clickAt(page, 200, 650);
   s = await state(page);
   expect(s.doc.annots).toHaveLength(0);
@@ -385,4 +386,14 @@ test('mobile layout has no horizontal page overflow', async ({ browser }) => {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   await ctx.close();
+});
+
+test('eraser paints out page content in the paper colour', async ({ page }) => {
+  await openSample(page);
+  await tool(page, 'eraser');
+  await drag(page, [70, 130], [300, 130]); // across "Client: Acme Corporation"
+  const a = (await state(page)).doc.annots[0];
+  expect(a).toMatchObject({ type: 'ink', stroke: '#ffffff', strokeWidth: 16 });
+  // the stroke is drawn into the exported page
+  expect((await PDFDocument.load(await save(page))).getPageCount()).toBe(3);
 });

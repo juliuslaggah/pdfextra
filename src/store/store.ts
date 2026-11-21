@@ -16,6 +16,8 @@ export interface ToolOptions {
   fill: string | null;
   stampLabel: string;
   stampColor: string;
+  eraserMode: 'content' | 'annots';
+  eraserSize: number;
 }
 
 export interface EditorState {
@@ -77,6 +79,8 @@ export const defaultOpts: ToolOptions = {
   fill: null,
   stampLabel: 'APPROVED',
   stampColor: '#16a34a',
+  eraserMode: 'content',
+  eraserSize: 16,
 };
 
 export const useEditor = create<EditorState>((set, get) => ({
