@@ -13,7 +13,9 @@ const RECT_TOOLS = new Set(['redact', 'whiteout', 'highlight', 'underline', 'str
 const TEXT_ITEM_TOOLS = new Set(['editText', 'highlight', 'underline', 'strikeout']);
 
 type Drag =
-  | { kind: 'move'; id: string; start: Point; orig: Annotation; moved: boolean }
+  // editOnClick: a click without dragging opens the text for typing
+  // live: moving the text being typed (recorded when typing ends)
+  | { kind: 'move'; id: string; start: Point; orig: Annotation; moved: boolean; editOnClick?: boolean; live?: boolean }
   | { kind: 'resize'; id: string; handle: Handle; start: Point; orig: Annotation; ob: Rect }
   | { kind: 'lineEnd'; id: string; end: 1 | 2 }
   | { kind: 'create'; start: Point; cur: Point }
@@ -87,6 +89,7 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
   const [items, setItems] = useState<TextItem[]>([]);
   const [hoverItem, setHoverItem] = useState<number>(-1);
   const [eraserPos, setEraserPos] = useState<Point | null>(null);
+  const [overText, setOverText] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -147,6 +150,15 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
     if (target.closest('textarea')) return;
     const p = toPt(e);
     const { opts } = st();
+    // dragging the move grip of the text being typed keeps it open
+    if (target.dataset.handle === 'grip' && st().editingId) {
+      const a = annots.find((x) => x.id === st().editingId);
+      if (a) {
+        overlayRef.current!.setPointerCapture(e.pointerId);
+        setD({ kind: 'move', id: a.id, start: p, orig: a, moved: false, live: true });
+        return;
+      }
+    }
     // finish any text editing first; the editor's blur handler commits it
     if (st().editingId) {
       if (textEditorControl.finish) textEditorControl.finish();
@@ -173,13 +185,13 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
       }
       case 'text': {
         const a = topHit(p);
-        if (a?.type === 'text') { st().setEditing(a.id); return; }
+        if (a?.type === 'text') { st().select(a.id); setD({ kind: 'move', id: a.id, start: p, orig: a, moved: false, editOnClick: true }); return; }
         startText({ x: p.x, y: p.y - st().opts.fontSize * 0.6 });
         return;
       }
       case 'editText': {
         const a = topHit(p);
-        if (a?.type === 'text') { st().setEditing(a.id); return; }
+        if (a?.type === 'text') { st().select(a.id); setD({ kind: 'move', id: a.id, start: p, orig: a, moved: false, editOnClick: true }); return; }
         const item = items.find((it) => pointInRect(p, it.rect, 1));
         if (item) editExistingText(item);
         else useUi.getState().notify('No editable text here. Use Add Text to place new text.');
@@ -223,6 +235,10 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
   const onPointerMove = (e: React.PointerEvent) => {
     const p = toPt(e);
     if (tool === 'eraser') setEraserPos(p);
+    if ((tool === 'text' || tool === 'editText') && !dragRef.current) {
+      const over = topHit(p)?.type === 'text';
+      if (over !== overText) setOverText(over);
+    }
     if (tool === 'editText' && !dragRef.current) {
       const i = items.findIndex((it) => pointInRect(p, it.rect, 1));
       if (i !== hoverItem) setHoverItem(i);
@@ -233,7 +249,7 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
       case 'move': {
         const dx = p.x - d.start.x, dy = p.y - d.start.y;
         if (!d.moved && Math.hypot(dx, dy) * z < 3) return;
-        if (!d.moved) { st().checkpoint(); d.moved = true; }
+        if (!d.moved) { if (!d.live) st().checkpoint(); d.moved = true; }
         const moved = translate(d.orig, dx, dy);
         st().mutate((doc) => ({ ...doc, annots: doc.annots.map((a) => (a.id === d.id ? moved : a)) }));
         return;
@@ -274,6 +290,8 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
     setD(null);
     if (!d) return;
     const { opts } = st();
+    if (d.kind === 'move' && d.editOnClick && !d.moved) { st().setEditing(d.id); return; }
+    if (d.kind === 'move' && d.live) { textEditorControl.focus?.(); return; }
     if (d.kind === 'ink') {
       st().addAnnot({ id: uid('an'), pageId: spec.id, type: 'ink', paths: [d.points], stroke: d.color ?? opts.color, strokeWidth: d.width ?? opts.strokeWidth, opacity: 1, ...(d.erase ? { erase: true } : {}) }, false);
     } else if (d.kind === 'erase' && !d.erased) {
@@ -350,7 +368,7 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
   return (
     <div
       ref={overlayRef}
-      className={`overlay tool-${tool}`}
+      className={`overlay tool-${tool} ${overText && (tool === 'text' || tool === 'editText') ? 'over-text' : ''}`}
       data-testid={`overlay-${spec.id}`}
       onPointerDown={onPointerDown}
       // keep focus in the text editor; we blur it explicitly when needed
@@ -374,7 +392,24 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
       {preview}
       {selected && selected.id !== editingId && tool === 'select' && <SelectionBox a={selected} z={z} />}
       {editingId && annots.some((a) => a.id === editingId) && (
-        <TextEditor a={annots.find((a) => a.id === editingId) as TextAnnot} z={z} />
+        <>
+          <TextEditor a={annots.find((a) => a.id === editingId) as TextAnnot} z={z} />
+          {(() => {
+            const a = annots.find((x) => x.id === editingId)!;
+            const b = getBounds(a);
+            return (
+              <div className="text-grip" data-handle="grip" data-testid="text-grip" title="Drag to move"
+                // left of the text, or above it when the text is at the page edge
+                style={b.x * z >= 28
+                  ? { left: b.x * z - 26, top: b.y * z + Math.max(0, (b.h * z - 22) / 2) }
+                  : { left: b.x * z, top: Math.max(0, b.y * z - 26) }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" pointerEvents="none">
+                  <path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3" />
+                </svg>
+              </div>
+            );
+          })()}
+        </>
       )}
       {tool === 'eraser' && eraserPos && (
         <EraserCursor x={eraserPos.x * z} y={eraserPos.y * z}

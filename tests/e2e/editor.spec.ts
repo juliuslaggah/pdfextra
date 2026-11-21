@@ -460,3 +460,47 @@ test('erased content is gone from the downloaded PDF', async ({ page }) => {
   expect(text[0]).not.toContain('4417');
   expect(text[1]).toContain('Terms and conditions');
 });
+
+test('text can be dragged into place with the Add Text tool', async ({ page }) => {
+  await openSample(page);
+  await tool(page, 'text');
+  await clickAt(page, 300, 500);
+  await page.keyboard.type('2026');
+  await page.keyboard.press('Escape');
+  const before = (await state(page)).doc.annots[0];
+  // drag the finished text: it moves instead of opening for typing
+  await drag(page, [before.x + 10, before.y + 8], [before.x - 90, before.y + 28]);
+  let s = await state(page);
+  expect(s.doc.annots[0].x).toBeCloseTo(before.x - 100, 0);
+  expect(s.doc.annots[0].y).toBeCloseTo(before.y + 20, 0);
+  await expect(page.getByTestId('text-editor')).toHaveCount(0);
+  // a plain click still opens it for typing
+  await clickAt(page, before.x - 90 + 5, before.y + 28);
+  await expect(page.getByTestId('text-editor')).toHaveValue('2026');
+  await page.keyboard.press('Escape');
+  // arrow keys nudge the selected text one point at a time
+  const x0 = (await state(page)).doc.annots[0].x;
+  await page.keyboard.press('ArrowLeft');
+  expect((await state(page)).doc.annots[0].x).toBeCloseTo(x0 - 1, 5);
+});
+
+test('text being typed can be moved with its grip', async ({ page }) => {
+  await openSample(page);
+  await tool(page, 'text');
+  await clickAt(page, 300, 500);
+  await page.keyboard.type('20');
+  const grip = (await page.getByTestId('text-grip').boundingBox())!;
+  await page.mouse.move(grip.x + 11, grip.y + 11);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + 11 + 60, grip.y + 11 - 40, { steps: 5 });
+  await page.mouse.up();
+  // still typing after the move
+  await page.keyboard.type('26');
+  await page.keyboard.press('Escape');
+  const s = await state(page);
+  expect(s.doc.annots[0].text).toBe('2026');
+  expect(s.doc.annots[0].x).toBeCloseTo(360, 0);
+  // the whole thing is one undo step
+  await page.keyboard.press('Control+z');
+  expect((await state(page)).doc.annots).toHaveLength(0);
+});
