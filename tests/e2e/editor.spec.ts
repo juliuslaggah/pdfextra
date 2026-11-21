@@ -397,3 +397,15 @@ test('eraser paints out page content in the paper colour', async ({ page }) => {
   // the stroke is drawn into the exported page
   expect((await PDFDocument.load(await save(page))).getPageCount()).toBe(3);
 });
+
+test('eraser cursor shape can be chosen', async ({ page }) => {
+  await openSample(page);
+  await tool(page, 'eraser');
+  const p = await at(page, 200, 300);
+  for (const shape of ['circle', 'square', 'plus', 'pencil']) {
+    await page.getByRole('radio', { name: `${shape[0].toUpperCase() + shape.slice(1)} cursor` }).click();
+    await page.mouse.move(p.x, p.y);
+    await page.mouse.move(p.x + 5, p.y + 5);
+    await expect(page.getByTestId('eraser-cursor')).toHaveAttribute('data-shape', shape);
+  }
+});

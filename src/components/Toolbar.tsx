@@ -239,7 +239,8 @@ export function OptionsBar() {
                 <input type="range" min={4} max={60} step={1} value={opts.eraserSize} onChange={(e) => setOpts({ eraserSize: parseFloat(e.target.value) })} aria-label="Eraser size" />
                 <span className="mono">{opts.eraserSize}</span>
               </label>
-              <span className="hint">Drag over anything on the page to paint it out with the paper colour.</span>
+              <CursorPicker />
+              <span className="hint hide-sm">Drag over anything on the page to paint it out with the paper colour.</span>
             </>
           ) : <span className="hint">Click or drag over anything you added to remove it.</span>}
         </>
@@ -309,6 +310,28 @@ function SelectedOptions({ a }: { a: Annotation }) {
       <span className="spacer" />
       <button className="icon-btn" onClick={dup} title="Duplicate (Ctrl+D)" aria-label="Duplicate"><Copy size={16} /></button>
       <button className="icon-btn danger" onClick={() => deleteAnnot(a.id)} title="Delete (Del)" aria-label="Delete"><Trash2 size={16} /></button>
+    </div>
+  );
+}
+
+const CURSORS: { id: 'circle' | 'square' | 'plus' | 'pencil'; label: string; icon: React.ReactNode }[] = [
+  { id: 'circle', label: 'Circle', icon: <circle cx="10" cy="10" r="6.5" /> },
+  { id: 'square', label: 'Square', icon: <rect x="3.5" y="3.5" width="13" height="13" rx="1.5" /> },
+  { id: 'plus', label: 'Plus', icon: <path d="M10 3v14M3 10h14" /> },
+  { id: 'pencil', label: 'Pencil', icon: <path d="M3 17l1.2-4L13.5 3.7a1.7 1.7 0 0 1 2.4 0l.4.4a1.7 1.7 0 0 1 0 2.4L7 15.8z" /> },
+];
+
+function CursorPicker() {
+  const cur = useEditor((s) => s.opts.eraserCursor);
+  return (
+    <div className="seg" role="radiogroup" aria-label="Eraser cursor">
+      <span className="seg-label">Cursor</span>
+      {CURSORS.map((c) => (
+        <button key={c.id} role="radio" aria-checked={cur === c.id} aria-label={`${c.label} cursor`} title={c.label}
+          className={`seg-btn ${cur === c.id ? 'on' : ''}`} onClick={() => useEditor.getState().setOpts({ eraserCursor: c.id })}>
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{c.icon}</svg>
+        </button>
+      ))}
     </div>
   );
 }

@@ -18,6 +18,7 @@ export interface ToolOptions {
   stampColor: string;
   eraserMode: 'content' | 'annots';
   eraserSize: number;
+  eraserCursor: 'circle' | 'square' | 'plus' | 'pencil';
 }
 
 export interface EditorState {
@@ -81,6 +82,7 @@ export const defaultOpts: ToolOptions = {
   stampColor: '#16a34a',
   eraserMode: 'content',
   eraserSize: 16,
+  eraserCursor: 'circle',
 };
 
 export const useEditor = create<EditorState>((set, get) => ({

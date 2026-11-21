@@ -375,10 +375,10 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
       {editingId && annots.some((a) => a.id === editingId) && (
         <TextEditor a={annots.find((a) => a.id === editingId) as TextAnnot} z={z} />
       )}
-      {tool === 'eraser' && eraserPos && (() => {
-        const size = st().opts.eraserMode === 'content' ? st().opts.eraserSize * z : 16;
-        return <div className="eraser-cursor" style={{ left: eraserPos.x * z - size / 2, top: eraserPos.y * z - size / 2, width: size, height: size }} />;
-      })()}
+      {tool === 'eraser' && eraserPos && (
+        <EraserCursor x={eraserPos.x * z} y={eraserPos.y * z}
+          size={st().opts.eraserMode === 'content' ? st().opts.eraserSize * z : 16} shape={st().opts.eraserCursor} />
+      )}
     </div>
   );
 }
@@ -481,5 +481,35 @@ function TextEditor({ a, z }: { a: TextAnnot; z: number }) {
         font: cssFont(a.fontSize * z, a.fontFamily, a.bold, a.italic, a.text), lineHeight: LINE_HEIGHT, color: a.color,
       }}
     />
+  );
+}
+
+/** Pointer shown while erasing. Circle and square outline the brush; plus and
+ *  pencil mark the exact point, with the brush size shown faintly around it. */
+function EraserCursor({ x, y, size, shape }: { x: number; y: number; size: number; shape: 'circle' | 'square' | 'plus' | 'pencil' }) {
+  const box = { left: x - size / 2, top: y - size / 2, width: size, height: size };
+  if (shape === 'circle' || shape === 'square') {
+    return <div className={`eraser-cursor ${shape}`} data-testid="eraser-cursor" data-shape={shape} style={box} />;
+  }
+  const arm = Math.max(10, size / 2 + 4);
+  return (
+    <>
+      <div className="eraser-cursor ghost" style={box} />
+      {shape === 'plus' ? (
+        <svg className="eraser-mark" data-testid="eraser-cursor" data-shape="plus" width={arm * 2} height={arm * 2}
+          style={{ left: x - arm, top: y - arm }} viewBox={`0 0 ${arm * 2} ${arm * 2}`}>
+          <path d={`M${arm} 0V${arm * 2}M0 ${arm}H${arm * 2}`} className="mark-halo" />
+          <path d={`M${arm} 0V${arm * 2}M0 ${arm}H${arm * 2}`} className="mark-line" />
+        </svg>
+      ) : (
+        <svg className="eraser-mark" data-testid="eraser-cursor" data-shape="pencil" width="26" height="26"
+          style={{ left: x, top: y - 26 }} viewBox="0 0 26 26">
+          {/* pencil tip sits exactly on the pointer (bottom-left corner) */}
+          <path d="M1 25l2-7L18 3a2.8 2.8 0 0 1 4 0l1 1a2.8 2.8 0 0 1 0 4L8 23z" className="pencil-body" />
+          <path d="M1 25l2-7 5 5z" className="pencil-tip" />
+          <path d="M16 5l5 5" className="pencil-band" />
+        </svg>
+      )}
+    </>
   );
 }
