@@ -45,6 +45,8 @@ export interface InkAnnot extends Base {
   stroke: string;
   strokeWidth: number;
   opacity: number;
+  /** painted by the eraser: the page underneath is flattened on export */
+  erase?: boolean;
 }
 export interface ImageAnnot extends Base, Rect {
   type: 'image';

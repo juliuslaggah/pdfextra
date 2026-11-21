@@ -17,7 +17,7 @@ type Drag =
   | { kind: 'resize'; id: string; handle: Handle; start: Point; orig: Annotation; ob: Rect }
   | { kind: 'lineEnd'; id: string; end: 1 | 2 }
   | { kind: 'create'; start: Point; cur: Point }
-  | { kind: 'ink'; points: Point[]; color?: string; width?: number }
+  | { kind: 'ink'; points: Point[]; color?: string; width?: number; erase?: boolean }
   | { kind: 'erase'; erased: boolean };
 
 export function PageView({ spec, index }: { spec: PageSpec; index: number }) {
@@ -149,7 +149,8 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
     const { opts } = st();
     // finish any text editing first; the editor's blur handler commits it
     if (st().editingId) {
-      (document.activeElement as HTMLElement | null)?.blur();
+      if (textEditorControl.finish) textEditorControl.finish();
+      else (document.activeElement as HTMLElement | null)?.blur();
       if (tool === 'text' || tool === 'editText') return;
     }
     overlayRef.current!.setPointerCapture(e.pointerId);
@@ -199,7 +200,7 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
           const pc = pageCanvases.get(spec.id);
           const r = opts.eraserSize * 1.5;
           const color = pc ? sampleColors(pc.canvas, { x: p.x - r, y: p.y - r, w: r * 2, h: r * 2 }, pc.scale).bg : '#ffffff';
-          setD({ kind: 'ink', points: [p], color, width: opts.eraserSize });
+          setD({ kind: 'ink', points: [p], color, width: opts.eraserSize, erase: true });
           return;
         }
         st().checkpoint();
@@ -274,7 +275,7 @@ function PageOverlay({ spec, z, w, h }: { spec: PageSpec; z: number; w: number; 
     if (!d) return;
     const { opts } = st();
     if (d.kind === 'ink') {
-      st().addAnnot({ id: uid('an'), pageId: spec.id, type: 'ink', paths: [d.points], stroke: d.color ?? opts.color, strokeWidth: d.width ?? opts.strokeWidth, opacity: 1 }, false);
+      st().addAnnot({ id: uid('an'), pageId: spec.id, type: 'ink', paths: [d.points], stroke: d.color ?? opts.color, strokeWidth: d.width ?? opts.strokeWidth, opacity: 1, ...(d.erase ? { erase: true } : {}) }, false);
     } else if (d.kind === 'erase' && !d.erased) {
       // nothing erased: drop the checkpoint we pushed
       const s = st();
@@ -417,6 +418,9 @@ function SelectionBox({ a, z }: { a: Annotation; z: number }) {
   );
 }
 
+/** Lets other parts of the UI end or resume the active text edit. */
+export const textEditorControl: { finish: (() => void) | null; focus: (() => void) | null } = { finish: null, focus: null };
+
 function TextEditor({ a, z }: { a: TextAnnot; z: number }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const baseRef = useRef(pendingText.get(a.id)?.base ?? useEditor.getState().doc);
@@ -454,7 +458,15 @@ function TextEditor({ a, z }: { a: TextAnnot; z: number }) {
     commitFrom(base);
   };
 
-  useEffect(() => () => finish(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    textEditorControl.finish = finish;
+    textEditorControl.focus = () => ref.current?.focus();
+    return () => {
+      textEditorControl.finish = null;
+      textEditorControl.focus = null;
+      finish();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const text = e.target.value;
@@ -470,7 +482,12 @@ function TextEditor({ a, z }: { a: TextAnnot; z: number }) {
       value={a.text}
       spellCheck
       onChange={onChange}
-      onBlur={finish}
+      onBlur={(e) => {
+        // picking a font, size or colour in the options bar keeps the edit open
+        const to = e.relatedTarget as HTMLElement | null;
+        if (to?.closest('.options-bar')) return;
+        finish();
+      }}
       onKeyDown={(e) => {
         e.stopPropagation();
         if (e.key === 'Escape') ref.current?.blur();

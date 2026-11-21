@@ -12,6 +12,8 @@ import { placeImage } from '../lib/place';
 import { fitWidthZoom } from './Viewer';
 import { measureText } from '../lib/textLayout';
 import { translate, uid } from '../lib/geometry';
+import { textEditorControl } from './PageView';
+import type { TextAnnot } from '../lib/types';
 
 const TOOLS: { id: Tool; label: string; icon: React.ElementType; key?: string }[] = [
   { id: 'select', label: 'Select', icon: MousePointer2, key: 'V' },
@@ -165,7 +167,8 @@ export function OptionsBar() {
   const { setOpts } = useEditor.getState();
   void selectedId;
 
-  if (sel && tool === 'select') return <SelectedOptions a={sel} />;
+  const textTool = tool === 'text' || tool === 'editText';
+  if (sel && (tool === 'select' || (textTool && sel.type === 'text'))) return <SelectedOptions a={sel} />;
 
   let body: React.ReactNode;
   switch (tool) {
@@ -240,7 +243,7 @@ export function OptionsBar() {
                 <span className="mono">{opts.eraserSize}</span>
               </label>
               <CursorPicker />
-              <span className="hint hide-sm">Drag over anything on the page to paint it out with the paper colour.</span>
+              <span className="hint hide-sm">Drag over anything to paint it out. Pages you erase on are saved as images, so the erased content is gone for good.</span>
             </>
           ) : <span className="hint">Click or drag over anything you added to remove it.</span>}
         </>
@@ -254,7 +257,19 @@ export function OptionsBar() {
 
 function SelectedOptions({ a }: { a: Annotation }) {
   const { updateAnnot, deleteAnnot, addAnnot, select } = useEditor.getState();
-  const up = (p: Partial<Annotation>) => updateAnnot(a.id, p);
+  const editing = useEditor((s) => s.editingId === a.id);
+  const tool = useEditor((s) => s.tool);
+  const up = (p: Partial<Annotation>) => {
+    // while typing, the whole edit is one undo step, recorded when it ends
+    updateAnnot(a.id, p, !editing);
+    if (a.type === 'text' && tool === 'text') {
+      // the next text box starts with the same style
+      const { fontFamily, fontSize, bold, italic, color } = p as Partial<TextAnnot>;
+      const o = Object.fromEntries(Object.entries({ fontFamily, fontSize, bold, italic, color }).filter(([, v]) => v !== undefined));
+      if (Object.keys(o).length) useEditor.getState().setOpts(o);
+    }
+    if (editing) setTimeout(() => textEditorControl.focus?.(), 0);
+  };
   const dup = () => {
     const copy = { ...translate(a, 12, 12), id: uid('an') };
     addAnnot(copy);
@@ -272,7 +287,7 @@ function SelectedOptions({ a }: { a: Annotation }) {
               up({ ...p, w: m.w, h: m.h } as Partial<Annotation>);
             }} />
           <ColorPick value={a.color} onChange={(color) => up({ color })} />
-          <button className="btn ghost sm" onClick={() => useEditor.getState().setEditing(a.id)}>Edit text</button>
+          {!editing && <button className="btn ghost sm" onClick={() => useEditor.getState().setEditing(a.id)}>Edit text</button>}
         </>
       );
       break;
@@ -304,7 +319,9 @@ function SelectedOptions({ a }: { a: Annotation }) {
       break;
   }
   return (
-    <div className="options-bar selected" data-testid="selected-options">
+    <div className="options-bar selected" data-testid="selected-options"
+      // buttons here must not steal focus from the text being typed
+      onMouseDown={(e) => { if ((e.target as HTMLElement).closest('button')) e.preventDefault(); }}>
       <span className="sel-kind">{a.type === 'ink' ? 'drawing' : a.type}</span>
       {body}
       <span className="spacer" />

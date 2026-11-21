@@ -421,3 +421,42 @@ test('plus and pencil cursors have no outline around them', async ({ page }) => 
     await expect(page.locator('.eraser-cursor')).toHaveCount(0);
   }
 });
+
+test('new text can be styled while typing and after', async ({ page }) => {
+  await openSample(page);
+  await tool(page, 'text');
+  await clickAt(page, 80, 300);
+  // choose a style before typing: the text box stays open
+  await page.getByLabel('Font size').fill('24');
+  await page.getByRole('button', { name: 'Bold' }).click();
+  await page.getByLabel('Font', { exact: true }).selectOption('Times');
+  await expect(page.getByTestId('text-editor')).toBeVisible();
+  await page.getByTestId('text-editor').focus();
+  await page.keyboard.type('Styled heading');
+  await page.keyboard.press('Escape');
+  let a = (await state(page)).doc.annots[0];
+  expect(a).toMatchObject({ text: 'Styled heading', fontSize: 24, bold: true, fontFamily: 'Times' });
+  // after typing, the text stays selected and can still be restyled in the Add Text tool
+  await page.getByRole('button', { name: 'Italic' }).click();
+  a = (await state(page)).doc.annots[0];
+  expect(a.italic).toBe(true);
+  // the whole thing is undoable step by step
+  await page.keyboard.press('Control+z');
+  expect((await state(page)).doc.annots[0].italic).toBe(false);
+  // the next text box starts with the same style
+  await clickAt(page, 80, 500);
+  await page.keyboard.type('Next');
+  await page.keyboard.press('Escape');
+  expect((await state(page)).doc.annots[1]).toMatchObject({ fontSize: 24, bold: true, fontFamily: 'Times' });
+});
+
+test('erased content is gone from the downloaded PDF', async ({ page }) => {
+  await openSample(page);
+  await tool(page, 'eraser');
+  await page.getByLabel('Eraser size').fill('30');
+  await drag(page, [65, 145], [345, 145]); // over "Account number: 4417-2290-1138"
+  expect((await state(page)).doc.annots[0]).toMatchObject({ type: 'ink', erase: true, strokeWidth: 30 });
+  const text = await pdfText(await save(page));
+  expect(text[0]).not.toContain('4417');
+  expect(text[1]).toContain('Terms and conditions');
+});

@@ -1,6 +1,6 @@
 import { BlendMode, LineCapStyle, PDFDocument, PDFFont, PDFPage, StandardFonts, degrees, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
-import type { Annotation, BoxAnnot, DocState, FontFamily, PageSpec, Rect, TextAnnot } from './types';
+import type { Annotation, BoxAnnot, DocState, FontFamily, InkAnnot, PageSpec, Rect, TextAnnot } from './types';
 import { getBounds, pageSize, rectsIntersect } from './geometry';
 import { BASELINE, LINE_HEIGHT, isWinAnsi } from './textLayout';
 
@@ -9,7 +9,7 @@ export interface ExportDeps {
   getSource(srcId: string): { bytes: Uint8Array; password?: string } | undefined;
   /** Render a source page (displayed frame) to PNG with the given rects blacked out.
    *  Needed for redaction and for pages pdf-lib cannot copy. */
-  rasterize?(spec: PageSpec, blackout: Rect[]): Promise<Uint8Array>;
+  rasterize?(spec: PageSpec, blackout: Rect[], erase: InkAnnot[]): Promise<Uint8Array>;
   /** Bytes of the bundled Unicode font: 'DejaVuSans' | 'DejaVuSans-Bold' */
   loadFont(name: 'DejaVuSans' | 'DejaVuSans-Bold'): Promise<ArrayBuffer | Uint8Array>;
   title?: string;
@@ -93,10 +93,12 @@ export async function exportPdf(state: DocState, deps: ExportDeps): Promise<Uint
     const page = out.addPage([W, H]);
     const annots = state.annots.filter((a) => a.pageId === spec.id);
     const redacts = annots.filter((a): a is BoxAnnot => a.type === 'redact').map(getBounds);
+    // eraser strokes are burned into a flattened copy of the page so nothing underneath survives
+    const erases = annots.filter((a): a is InkAnnot => a.type === 'ink' && !!a.erase);
 
     if (spec.srcId) {
       let drawn = false;
-      if (!redacts.length) {
+      if (!redacts.length && !erases.length) {
         const lib = await loadLib(spec.srcId);
         if (lib) {
           try {
@@ -118,8 +120,10 @@ export async function exportPdf(state: DocState, deps: ExportDeps): Promise<Uint
       }
       if (!drawn) {
         if (!deps.rasterize) throw new Error('This page needs rasterization, which is unavailable here');
-        const png = await out.embedPng(await deps.rasterize(spec, redacts));
-        page.drawImage(png, { x: 0, y: 0, width: W, height: H });
+        const raster = await deps.rasterize(spec, redacts, erases);
+        const isJpg = raster[0] === 0xff && raster[1] === 0xd8;
+        const img = isJpg ? await out.embedJpg(raster) : await out.embedPng(raster);
+        page.drawImage(img, { x: 0, y: 0, width: W, height: H });
       }
     }
 

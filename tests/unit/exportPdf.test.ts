@@ -92,6 +92,18 @@ describe('exportPdf', () => {
     expect(t[1]).toContain('Terms and conditions');
   });
 
+  it('flattens pages with eraser strokes so erased text is removed', async () => {
+    const { pages, deps, rasterized } = await setup();
+    const annots: Annotation[] = [
+      { id: 'e', pageId: 'p0', type: 'ink', erase: true, paths: [[{ x: 70, y: 150 }, { x: 330, y: 150 }]], stroke: '#ffffff', strokeWidth: 16, opacity: 1 },
+      { id: 'd', pageId: 'p1', type: 'ink', paths: [[{ x: 70, y: 150 }, { x: 330, y: 150 }]], stroke: '#000000', strokeWidth: 2, opacity: 1 },
+    ];
+    const t = await textOf(await exportPdf({ pages, annots }, deps));
+    expect(rasterized).toEqual(['p0']); // an ordinary drawing does not flatten its page
+    expect(t[0]).not.toContain('Account number');
+    expect(t[1]).toContain('Terms and conditions');
+  });
+
   it('draws every annotation type without errors', async () => {
     const { pages, deps } = await setup();
     const P = 'p0';
